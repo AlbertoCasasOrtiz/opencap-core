@@ -1,0 +1,24 @@
+on:
+  workflow_dispatch:
+
+jobs:
+  ping-ips:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Access and split IP addresses
+      run: |
+        # Access the secret
+        IP_ADDRESSES="${{ secrets.IP_ADDRESSES }}"
+        
+        # Split the string into an array
+        IFS=',' read -r -a ip_array <<< "$IP_ADDRESSES"
+
+        # Iterate over the array and ping each IP
+        for ip in "${ip_array[@]}"; do
+          echo "Operating on IP: $ip"
+          ping -c 3 "$ip"
+        done

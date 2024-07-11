@@ -4,23 +4,47 @@ on:
 jobs:
   ping-ips:
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
 
-    - name: Access and split IP addresses
-      run: |
-        # Access the secret
-        IP_ADDRESSES="${{ secrets.IP_ADDRESSES }}"
-        
-        # Split the string into an array
-        IFS=',' read -r -a ip_array <<< "$IP_ADDRESSES"
+    - name: Install sshpass
+      run: sudo apt-get install -y sshpass
 
-        # Iterate over the array and ping each IP
-        for ip in "${ip_array[@]}"; do
-          echo "Operating on IP: $ip"
-          if ! ping -c 3 "$ip"; then
-            echo "IP $ip is not responding to ping"
+    - name: Access and split IP addresses, usernames, and passwords
+      run: |
+        # Access the secrets
+        IP_ADDRESSES="${{ secrets.IP_ADDRESSES }}"
+        USERNAMES="${{ secrets.USERNAMES }}"
+        PASSWORDS="${{ secrets.PASSWORDS }}"
+        
+        # Split the strings into arrays
+        IFS=',' read -r -a ip_array <<< "$IP_ADDRESSES"
+        IFS=',' read -r -a username_array <<< "$USERNAMES"
+        IFS=',' read -r -a password_array <<< "$PASSWORDS"
+
+        # Initialize a variable to store non-responsive IPs
+        non_responsive_ips=""
+
+        # Iterate over the arrays and perform SSH connection
+        for i in "${!ip_array[@]}"; do
+          ip="${ip_array[$i]}"
+          username="${username_array[$i]}"
+          password="${password_array[$i]}"
+          
+          echo "Attempting SSH to IP: $ip with username: $username"
+
+          # Attempt SSH connection
+          if ! sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$username@$ip" exit; then
+            echo "IP $ip is not responding to SSH"
+            non_responsive_ips="$non_responsive_ips $ip"
           fi
-        done || true
+        done
+
+        # Print non-responsive IPs
+        if [ -n "$non_responsive_ips" ]; then
+          echo "The following IPs did not respond to SSH: $non_responsive_ips"
+        else
+          echo "All IPs responded to SSH successfully."
+        fi

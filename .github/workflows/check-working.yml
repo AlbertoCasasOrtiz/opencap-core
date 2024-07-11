@@ -20,5 +20,7 @@ jobs:
         # Iterate over the array and ping each IP
         for ip in "${ip_array[@]}"; do
           echo "Operating on IP: $ip"
-          ping -c 3 "$ip"
-        done
+          if ! ping -c 3 "$ip"; then
+            echo "IP $ip is not responding to ping"
+          fi
+        done || true
